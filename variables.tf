@@ -30,7 +30,7 @@ variable "vpc_cidr" {
 
 variable "availability_zones" {
   type    = list(string)
-  default = []
+  default = ["us-east-1a", "us-east-1b"]
 }
 
 variable "private_subnet_cidrs" {
@@ -60,7 +60,12 @@ variable "node_desired_size" {
 
 variable "node_max_size" {
   type    = number
-  default = 6
+  default = 4
+}
+
+variable "lab_role_arn" {
+  type        = string
+  description = "ARN da role pré-criada LabRole do AWS Academy Learner Lab."
 }
 
 variable "grafana_secret_arn" {
@@ -73,10 +78,10 @@ variable "grafana_admin_user" {
   default = "admin"
 }
 
-variable "alb_dns_ssm_parameter" {
+variable "nlb_dns_ssm_parameter" {
   type        = string
   default     = ""
-  description = "Override opcional do parâmetro SSM que receberá o DNS do ALB."
+  description = "Override opcional do parâmetro SSM que receberá o DNS do NLB."
 }
 
 variable "tags" {

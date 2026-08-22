@@ -19,8 +19,11 @@ grafana:
       jsonData:
         timeout: 60
         maxLines: 1000
+  persistence:
+    enabled: false
 prometheus:
   prometheusSpec:
+    storageSpec: {}
     serviceMonitorSelector:
       matchLabels:
         release: kube-prometheus-stack
@@ -35,3 +38,4 @@ alertmanager:
   alertmanagerSpec:
     logLevel: info
     configSecret: alertmanager-config
+    storage: {}

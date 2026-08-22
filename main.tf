@@ -7,7 +7,7 @@ locals {
     2
   )
 
-  alb_dns_parameter = var.alb_dns_ssm_parameter != "" ? var.alb_dns_ssm_parameter : "/siase/${var.environment}/alb-dns"
+  nlb_dns_parameter = var.nlb_dns_ssm_parameter != "" ? var.nlb_dns_ssm_parameter : "/siase/${var.environment}/nlb-dns"
 
   common_tags = merge(var.tags, {
     Project     = var.project_name
@@ -31,8 +31,8 @@ module "vpc" {
   private_subnets = var.private_subnet_cidrs
   public_subnets  = var.public_subnet_cidrs
 
-  enable_nat_gateway = true
-  single_nat_gateway = false
+  enable_nat_gateway      = false
+  map_public_ip_on_launch = true
 
   enable_dns_hostnames = true
   enable_dns_support   = true
@@ -56,11 +56,13 @@ module "eks" {
   kubernetes_version = var.cluster_version
 
   vpc_id     = module.vpc.vpc_id
-  subnet_ids = module.vpc.private_subnets
+  subnet_ids = module.vpc.public_subnets
 
   endpoint_public_access = true
 
-  enable_irsa                              = true
+  create_iam_role                          = false
+  iam_role_arn                             = var.lab_role_arn
+  enable_irsa                              = false
   enable_cluster_creator_admin_permissions = true
 
   addons = {
@@ -78,14 +80,16 @@ module "eks" {
 
   eks_managed_node_groups = {
     default = {
-      ami_type       = "AL2023_x86_64_STANDARD"
-      instance_types = var.node_instance_types
+      ami_type        = "AL2023_x86_64_STANDARD"
+      instance_types  = var.node_instance_types
+      create_iam_role = false
+      iam_role_arn    = var.lab_role_arn
 
       min_size     = var.node_min_size
       desired_size = var.node_desired_size
       max_size     = var.node_max_size
 
-      subnet_ids = module.vpc.private_subnets
+      subnet_ids = module.vpc.public_subnets
     }
   }
 
@@ -93,50 +97,14 @@ module "eks" {
   tags           = local.common_tags
 }
 
-data "aws_iam_policy_document" "load_balancer_controller_assume_role" {
-  statement {
-    effect  = "Allow"
-    actions = ["sts:AssumeRoleWithWebIdentity"]
-
-    principals {
-      type        = "Federated"
-      identifiers = [module.eks.oidc_provider_arn]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "${module.eks.oidc_provider}:aud"
-      values   = ["sts.amazonaws.com"]
-    }
-
-    condition {
-      test     = "StringEquals"
-      variable = "${module.eks.oidc_provider}:sub"
-      values   = ["system:serviceaccount:kube-system:aws-load-balancer-controller"]
-    }
-  }
-}
-
-resource "aws_iam_role" "load_balancer_controller" {
-  name               = "${local.name}-aws-load-balancer-controller"
-  assume_role_policy = data.aws_iam_policy_document.load_balancer_controller_assume_role.json
-  tags               = local.common_tags
-}
-
-resource "aws_iam_role_policy" "load_balancer_controller" {
-  name   = "aws-load-balancer-controller"
-  role   = aws_iam_role.load_balancer_controller.id
-  policy = file("${path.module}/iam/aws-load-balancer-controller-policy.json")
-}
-
 data "aws_secretsmanager_secret_version" "grafana" {
   secret_id = var.grafana_secret_arn
 }
 
-resource "aws_ssm_parameter" "alb_dns" {
-  name  = local.alb_dns_parameter
+resource "aws_ssm_parameter" "nlb_dns" {
+  name  = local.nlb_dns_parameter
   type  = "String"
-  value = "PENDING_ALB_DNS"
+  value = "PENDING_NLB_DNS"
   tags  = local.common_tags
 
   lifecycle {
@@ -203,23 +171,6 @@ resource "helm_release" "metrics_server" {
   wait             = true
 
   values = [file("${path.module}/helm/metrics-server-values.yaml")]
-}
-
-resource "helm_release" "aws_load_balancer_controller" {
-  name             = "aws-load-balancer-controller"
-  namespace        = "kube-system"
-  create_namespace = true
-  repository       = "https://aws.github.io/eks-charts"
-  chart            = "aws-load-balancer-controller"
-  version          = "1.8.1"
-  wait             = true
-
-  values = [templatefile("${path.module}/helm/aws-load-balancer-controller-values.yaml", {
-    cluster_name = module.eks.cluster_name
-    region       = var.aws_region
-    vpc_id       = module.vpc.vpc_id
-    role_arn     = aws_iam_role.load_balancer_controller.arn
-  })]
 }
 
 resource "helm_release" "kube_prometheus_stack" {

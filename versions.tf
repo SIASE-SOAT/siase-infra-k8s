@@ -19,9 +19,9 @@ terraform {
   }
 
   backend "s3" {
-    key            = "siase-infra-k8s/terraform.tfstate"
-    region         = "us-east-1"
-    encrypt        = true
-    dynamodb_table = "siase-terraform-lock"
+    key          = "siase-infra-k8s/terraform.tfstate"
+    region       = "us-east-1"
+    encrypt      = true
+    use_lockfile = true
   }
 }

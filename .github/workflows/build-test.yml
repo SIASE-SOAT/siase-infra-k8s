@@ -1,0 +1,23 @@
+name: build-test
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.8
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false
+        working-directory: .
+      - run: terraform validate -no-color

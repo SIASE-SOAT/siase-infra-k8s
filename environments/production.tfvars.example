@@ -1,0 +1,8 @@
+aws_region          = "us-east-1"
+grafana_secret_arn  = "arn:aws:secretsmanager:us-east-1:123456789012:secret:siase/production/grafana"
+cluster_version     = "1.30"
+lab_role_arn        = "arn:aws:iam::123456789012:role/LabRole"
+node_instance_types = ["t3.medium"]
+node_min_size       = 2
+node_desired_size   = 2
+node_max_size       = 4

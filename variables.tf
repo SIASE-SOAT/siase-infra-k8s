@@ -5,11 +5,8 @@ variable "aws_region" {
 
 variable "environment" {
   type        = string
-  description = "Ambiente do cluster."
-  validation {
-    condition     = contains(["homolog", "production"], var.environment)
-    error_message = "environment deve ser homolog ou production."
-  }
+  default     = "production"
+  description = "Ambiente fixo."
 }
 
 variable "project_name" {

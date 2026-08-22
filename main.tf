@@ -7,7 +7,7 @@ locals {
     2
   )
 
-  lb_dns_parameter = var.lb_dns_ssm_parameter != "" ? var.lb_dns_ssm_parameter : "/siase/${var.environment}/lb-dns"
+  lb_dns_parameter = var.lb_dns_ssm_parameter != "" ? var.lb_dns_ssm_parameter : "/siase/production/lb-dns"
 
   common_tags = merge(var.tags, {
     Project     = var.project_name
@@ -146,35 +146,35 @@ resource "aws_vpc_endpoint" "secretsmanager" {
 }
 
 resource "aws_ssm_parameter" "secretsmanager_endpoint_id" {
-  name  = "/siase/${var.environment}/secretsmanager-endpoint-id"
+  name  = "/siase/production/secretsmanager-endpoint-id"
   type  = "String"
   value = aws_vpc_endpoint.secretsmanager.id
   tags  = local.common_tags
 }
 
 resource "aws_ssm_parameter" "secretsmanager_endpoint_sg_id" {
-  name  = "/siase/${var.environment}/secretsmanager-endpoint-sg-id"
+  name  = "/siase/production/secretsmanager-endpoint-sg-id"
   type  = "String"
   value = aws_security_group.secretsmanager_endpoint.id
   tags  = local.common_tags
 }
 
 resource "aws_ssm_parameter" "vpc_id" {
-  name  = "/siase/${var.environment}/vpc-id"
+  name  = "/siase/production/vpc-id"
   type  = "String"
   value = module.vpc.vpc_id
   tags  = local.common_tags
 }
 
 resource "aws_ssm_parameter" "private_subnet_ids" {
-  name  = "/siase/${var.environment}/private-subnet-ids"
+  name  = "/siase/production/private-subnet-ids"
   type  = "String"
   value = jsonencode(module.vpc.private_subnets)
   tags  = local.common_tags
 }
 
 resource "aws_ssm_parameter" "eks_node_sg_id" {
-  name  = "/siase/${var.environment}/eks-node-sg-id"
+  name  = "/siase/production/eks-node-sg-id"
   type  = "String"
   value = module.eks.node_security_group_id
   tags  = local.common_tags

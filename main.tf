@@ -7,7 +7,7 @@ locals {
     2
   )
 
-  nlb_dns_parameter = var.nlb_dns_ssm_parameter != "" ? var.nlb_dns_ssm_parameter : "/siase/${var.environment}/nlb-dns"
+  lb_dns_parameter = var.lb_dns_ssm_parameter != "" ? var.lb_dns_ssm_parameter : "/siase/${var.environment}/lb-dns"
 
   common_tags = merge(var.tags, {
     Project     = var.project_name
@@ -101,15 +101,62 @@ data "aws_secretsmanager_secret_version" "grafana" {
   secret_id = var.grafana_secret_arn
 }
 
-resource "aws_ssm_parameter" "nlb_dns" {
-  name  = local.nlb_dns_parameter
+resource "aws_ssm_parameter" "lb_dns" {
+  name  = local.lb_dns_parameter
   type  = "String"
-  value = "PENDING_NLB_DNS"
+  value = "PENDING_LB_DNS"
   tags  = local.common_tags
 
   lifecycle {
     ignore_changes = [value]
   }
+}
+
+resource "aws_security_group" "secretsmanager_endpoint" {
+  name        = "${local.name}-secretsmanager-endpoint"
+  description = "Permite HTTPS da VPC ao endpoint privado do Secrets Manager"
+  vpc_id      = module.vpc.vpc_id
+  tags        = local.common_tags
+
+  ingress {
+    description = "Secrets Manager a partir da VPC"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [var.vpc_cidr]
+  }
+
+  egress {
+    description = "Saida necessaria do endpoint"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_vpc_endpoint" "secretsmanager" {
+  vpc_id              = module.vpc.vpc_id
+  service_name        = "com.amazonaws.${var.aws_region}.secretsmanager"
+  vpc_endpoint_type   = "Interface"
+  private_dns_enabled = true
+  subnet_ids          = module.vpc.private_subnets
+  security_group_ids  = [aws_security_group.secretsmanager_endpoint.id]
+  tags                = local.common_tags
+}
+
+resource "aws_ssm_parameter" "secretsmanager_endpoint_id" {
+  name  = "/siase/${var.environment}/secretsmanager-endpoint-id"
+  type  = "String"
+  value = aws_vpc_endpoint.secretsmanager.id
+  tags  = local.common_tags
+}
+
+resource "aws_ssm_parameter" "secretsmanager_endpoint_sg_id" {
+  name  = "/siase/${var.environment}/secretsmanager-endpoint-sg-id"
+  type  = "String"
+  value = aws_security_group.secretsmanager_endpoint.id
+  tags  = local.common_tags
 }
 
 resource "aws_ssm_parameter" "vpc_id" {

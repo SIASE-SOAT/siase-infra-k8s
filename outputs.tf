@@ -11,6 +11,6 @@ output "vpc_id" {
   value = module.vpc.vpc_id
 }
 
-output "nlb_dns_ssm_parameter" {
-  value = aws_ssm_parameter.nlb_dns.name
+output "lb_dns_ssm_parameter" {
+  value = aws_ssm_parameter.lb_dns.name
 }

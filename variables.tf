@@ -78,10 +78,10 @@ variable "grafana_admin_user" {
   default = "admin"
 }
 
-variable "nlb_dns_ssm_parameter" {
+variable "lb_dns_ssm_parameter" {
   type        = string
   default     = ""
-  description = "Override opcional do parâmetro SSM que receberá o DNS do NLB."
+  description = "Override opcional do parâmetro SSM que receberá o DNS do Load Balancer."
 }
 
 variable "tags" {

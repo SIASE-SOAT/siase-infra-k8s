@@ -1,0 +1,150 @@
+{
+  "annotations": {
+    "list": []
+  },
+  "editable": true,
+  "panels": [
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "targets": [
+        { "expr": "sum(round(increase(siase_ordens_servico_criadas_total{application=\"siase\"}[1d])))", "refId": "A" }
+      ],
+      "title": "Volume diário de ordens de serviço",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "targets": [
+        { "expr": "sum by (status) (rate(siase_ordem_servico_tempo_status_seconds_sum{application=\"siase\"}[$__rate_interval])) / sum by (status) (rate(siase_ordem_servico_tempo_status_seconds_count{application=\"siase\"}[$__rate_interval]))", "refId": "A" }
+      ],
+      "title": "Tempo médio por status",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "id": 3,
+      "targets": [
+        { "expr": "histogram_quantile(0.95, sum by (status, le) (rate(siase_ordem_servico_tempo_status_seconds_bucket{application=\"siase\"}[$__rate_interval])))", "refId": "A" }
+      ],
+      "title": "P95 por status",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "id": 4,
+      "targets": [
+        { "expr": "sum(rate(siase_execucao_item_tempo_seconds_sum{application=\"siase\"}[$__rate_interval])) / sum(rate(siase_execucao_item_tempo_seconds_count{application=\"siase\"}[$__rate_interval]))", "refId": "A" }
+      ],
+      "title": "Tempo médio de execução de item",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "id": 5,
+      "targets": [
+        { "expr": "sum(round(increase(siase_execucao_item_iniciadas_total{application=\"siase\"}[1d])))", "refId": "A" }
+      ],
+      "title": "Itens iniciados",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "id": 6,
+      "targets": [
+        { "expr": "histogram_quantile(0.95, sum by (uri, le) (rate(http_server_requests_seconds_bucket{application=\"siase\"}[$__rate_interval])))", "refId": "A" },
+        { "expr": "histogram_quantile(0.99, sum by (uri, le) (rate(http_server_requests_seconds_bucket{application=\"siase\"}[$__rate_interval])))", "refId": "B" }
+      ],
+      "title": "Latência das APIs p95/p99",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "percentunit" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "id": 7,
+      "targets": [
+        { "expr": "sum(rate(http_server_requests_seconds_count{application=\"siase\",status=~\"5..\"}[$__rate_interval])) / sum(rate(http_server_requests_seconds_count{application=\"siase\"}[$__rate_interval]))", "refId": "A" }
+      ],
+      "title": "Taxa de erro 5xx",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "id": 8,
+      "targets": [
+        { "expr": "sum by (integracao) (increase(siase_falhas_integracao_total{application=\"siase\"}[1h]))", "refId": "A" }
+      ],
+      "title": "Falhas de integração",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "percentunit" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+      "id": 9,
+      "targets": [
+        { "expr": "sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=\"siase\",container!=\"\"}[$__rate_interval]))", "refId": "A" }
+      ],
+      "title": "CPU por pod",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+      "id": 10,
+      "targets": [
+        { "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=\"siase\",container!=\"\"})", "refId": "A" }
+      ],
+      "title": "Memória por pod",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 40 },
+      "id": 11,
+      "targets": [
+        { "expr": "process_uptime_seconds{application=\"siase\"}", "refId": "A" }
+      ],
+      "title": "Uptime da aplicação",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 40 },
+      "id": 12,
+      "targets": [
+        { "expr": "up{namespace=\"siase\"}", "refId": "A" }
+      ],
+      "title": "Disponibilidade do scrape",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": ["siase", "fase3"],
+  "templating": { "list": [] },
+  "time": { "from": "now-6h", "to": "now" },
+  "title": "SIASE - Visão operacional",
+  "uid": "siase-overview",
+  "version": 1
+}

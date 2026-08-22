@@ -1,0 +1,74 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: siase-alerts
+  namespace: monitoring
+  labels:
+    release: kube-prometheus-stack
+spec:
+  groups:
+    - name: siase.application
+      rules:
+        - alert: SiaseHighLatency
+          expr: histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{application="siase"}[5m]))) > 1
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Latência alta na aplicação SIASE
+            description: O p95 das APIs do SIASE está acima de 1 segundo.
+        - alert: SiaseHighErrorRate
+          expr: sum(rate(http_server_requests_seconds_count{application="siase",status=~"5.."}[5m])) / sum(rate(http_server_requests_seconds_count{application="siase"}[5m])) > 0.05 and sum(rate(http_server_requests_seconds_count{application="siase"}[5m])) > 0.1
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Taxa de erro 5xx alta no SIASE
+            description: A taxa de respostas 5xx do SIASE está acima de 5%.
+        - alert: SiaseOrderProcessingFailure
+          expr: sum(rate(http_server_requests_seconds_count{application="siase",uri=~"/ordens.*",status=~"5.."}[5m])) > 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Falha no processamento de ordens
+            description: Existem respostas 5xx nas rotas de ordens do SIASE.
+        - alert: SiaseIntegrationFailures
+          expr: sum by (integracao) (increase(siase_falhas_integracao_total{application="siase"}[15m])) > 5
+          labels:
+            severity: warning
+          annotations:
+            summary: Falhas de integração no SIASE
+            description: A integração {{ $labels.integracao }} registrou mais de cinco falhas em 15 minutos.
+        - alert: SiaseApplicationDown
+          expr: max(up{namespace="siase"}) == 0
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: Aplicação SIASE fora do ar
+            description: Nenhum target do namespace siase está disponível para scrape.
+        - alert: SiasePodNotReady
+          expr: kube_pod_status_ready{namespace="siase",condition="true"} == 0
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Pod SIASE não está pronto
+            description: Um pod do namespace siase permanece sem readiness.
+        - alert: SiaseHighCpu
+          expr: sum by (pod) (rate(container_cpu_usage_seconds_total{namespace="siase",container!=""}[5m])) / on(pod) group_left() sum by (pod) (kube_pod_container_resource_limits{namespace="siase",resource="cpu"}) > 0.85
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: CPU alta em pod SIASE
+            description: O pod {{ $labels.pod }} está acima de 85% do limite de CPU.
+        - alert: SiaseHighMemory
+          expr: sum by (pod) (container_memory_working_set_bytes{namespace="siase",container!=""}) / on(pod) group_left() sum by (pod) (kube_pod_container_resource_limits{namespace="siase",resource="memory"}) > 0.9
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: Memória alta em pod SIASE
+            description: O pod {{ $labels.pod }} está acima de 90% do limite de memória.

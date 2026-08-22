@@ -144,6 +144,27 @@ resource "aws_ssm_parameter" "alb_dns" {
   }
 }
 
+resource "aws_ssm_parameter" "vpc_id" {
+  name  = "/siase/${var.environment}/vpc-id"
+  type  = "String"
+  value = module.vpc.vpc_id
+  tags  = local.common_tags
+}
+
+resource "aws_ssm_parameter" "private_subnet_ids" {
+  name  = "/siase/${var.environment}/private-subnet-ids"
+  type  = "String"
+  value = jsonencode(module.vpc.private_subnets)
+  tags  = local.common_tags
+}
+
+resource "aws_ssm_parameter" "eks_node_sg_id" {
+  name  = "/siase/${var.environment}/eks-node-sg-id"
+  type  = "String"
+  value = module.eks.node_security_group_id
+  tags  = local.common_tags
+}
+
 resource "kubernetes_namespace_v1" "siase" {
   metadata {
     name = "siase"

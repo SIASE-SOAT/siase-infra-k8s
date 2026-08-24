@@ -242,6 +242,7 @@ resource "helm_release" "loki" {
   chart            = "loki"
   version          = "6.6.2"
   wait             = true
+  timeout          = 900
 
   values     = [file("${path.module}/helm/loki-values.yaml")]
   depends_on = [kubernetes_namespace_v1.monitoring, aws_eks_node_group.default]

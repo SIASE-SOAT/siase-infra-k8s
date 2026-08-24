@@ -1,0 +1,35 @@
+name: deploy-prod
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    uses: ./.github/workflows/build-test.yml
+
+  deploy:
+    needs: build-test
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.8
+      - run: terraform init -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+      - run: terraform apply -auto-approve -var="aws_region=${{ vars.AWS_REGION }}" -var="grafana_secret_arn=${{ vars.GRAFANA_SECRET_ARN }}" -var="lab_role_arn=${{ vars.LAB_ROLE_ARN }}" -var="lb_dns_ssm_parameter=${{ vars.LB_DNS_SSM_PARAMETER }}"
+      - uses: azure/setup-kubectl@v4
+        with:
+          version: latest
+      - run: aws eks update-kubeconfig --region "${{ vars.AWS_REGION }}" --name "${{ vars.EKS_CLUSTER_NAME }}"
+      - run: kubectl apply -f k8s/alertmanager-config.yaml -f k8s/prometheus-rule.yaml

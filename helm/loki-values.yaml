@@ -10,6 +10,12 @@ singleBinary:
   replicas: 1
   persistence:
     enabled: false
+  extraVolumes:
+    - name: data
+      emptyDir: {}
+  extraVolumeMounts:
+    - name: data
+      mountPath: /var/loki
 read:
   replicas: 0
 write:
@@ -25,8 +31,10 @@ resultsCache:
   enabled: false
 minio:
   enabled: false
+lokiCanary:
+  enabled: false
+test:
+  enabled: false
 monitoring:
   selfMonitoring:
-    enabled: false
-  lokiCanary:
     enabled: false

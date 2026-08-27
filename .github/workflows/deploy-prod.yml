@@ -27,6 +27,8 @@ jobs:
         with:
           terraform_version: 1.15.8
       - run: terraform init -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+      - name: Apply cluster and node group first
+        run: terraform apply -auto-approve -target=aws_eks_cluster.this -target=aws_eks_node_group.default -var="aws_region=${{ vars.AWS_REGION }}" -var="grafana_secret_arn=${{ vars.GRAFANA_SECRET_ARN }}" -var="lab_role_arn=${{ vars.LAB_ROLE_ARN }}" -var="lb_dns_ssm_parameter=${{ vars.LB_DNS_SSM_PARAMETER }}"
       - run: terraform apply -auto-approve -var="aws_region=${{ vars.AWS_REGION }}" -var="grafana_secret_arn=${{ vars.GRAFANA_SECRET_ARN }}" -var="lab_role_arn=${{ vars.LAB_ROLE_ARN }}" -var="lb_dns_ssm_parameter=${{ vars.LB_DNS_SSM_PARAMETER }}"
       - uses: azure/setup-kubectl@v4
         with:

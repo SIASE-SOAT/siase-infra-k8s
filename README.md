@@ -1,20 +1,18 @@
 # SIASE - infraestrutura Kubernetes e observabilidade
 
 Repositório da infraestrutura da Fase 3 para o cluster Kubernetes gerenciado da
-aplicação SIASE. O código cria a rede AWS, o EKS, o AWS Load Balancer Controller,
-o stack de observabilidade e o parâmetro SSM consumido pelo repositório
-`siase-auth-lambda`.
+aplicação SIASE. O código cria a rede AWS, o EKS, o VPC Endpoint para o
+Secrets Manager, o stack de observabilidade e os parâmetros SSM consumidos
+pelos repositórios `siase-infra-database` e `siase-auth-lambda`.
 
-A entrega foi validada por formatação, validação Terraform,
-renderização Helm, JSON e regras Prometheus. O apply deve ser realizado somente
-em uma conta AWS Student, usando OIDC na pipeline ou credenciais locais
-temporárias.
+O apply deve ser realizado somente em uma conta AWS Student, usando credenciais
+temporarias do Learner Lab atualizadas a cada sessão.
 
 ## Arquitetura
 
 ```mermaid
 flowchart TB
-  internet[Internet] --> alb[ALB provisionado pelo Ingress]
+  internet[Internet] --> alb[ALB provisionado pelo app-service]
   alb --> app[Service app-service\nnamespace siase]
   app --> eks[EKS gerenciado]
   eks --> nodes[Managed node group\n2 AZs + autoscaling]
@@ -25,24 +23,24 @@ flowchart TB
   alloy --> loki[Loki]
   grafana --> prometheus
   grafana --> loki
-  alb -. hostname .-> ssm[SSM /siase/<ambiente>/alb-dns]
+  alb -. hostname .-> ssm[SSM /siase/production/lb-dns]
   ssm --> lambda[siase-auth-lambda]
-  vpc[VPC pública/privada + NAT] --> eks
+  vpc[VPC publica/privada\nsem NAT Gateway\nLearner Lab] --> eks
 ```
 
 ### Componentes
 
-- VPC com duas subnets públicas, duas privadas e NAT Gateway, distribuídas em
-  duas AZs;
+- VPC com duas subnets públicas e duas privadas, distribuídas em duas AZs
+  (NAT Gateway desabilitado nesta entrega para o Learner Lab — nodes ficam em subnets públicas com IP público);
 - EKS gerenciado com managed node group e escala configurável;
 - `metrics-server` para suportar HPA e métricas de pods;
-- AWS Load Balancer Controller usando IRSA;
+- VPC Endpoint privado para o Secrets Manager (permite acesso das Lambdas sem internet);
 - `kube-prometheus-stack`, contendo Prometheus, Grafana e Alertmanager;
 - Loki em modo SingleBinary com armazenamento local para esta entrega;
 - **Grafana Alloy** como agente de coleta e envio de logs para Loki;
 - ConfigMap de dashboard com o label `grafana_dashboard=1`;
 - `PrometheusRule` com os alertas operacionais;
-- parâmetro SSM com placeholder até o ALB existir.
+- parâmetro SSM `/siase/production/lb-dns` com placeholder até o Load Balancer existir.
 
 ## Agente de logs escolhido
 
@@ -71,7 +69,7 @@ permite correlacionar uma requisição entre aplicação e observabilidade.
 3. Copiar um arquivo de ambiente:
 
    ```bash
-   cp environments/homolog.tfvars.example environments/homolog.tfvars
+   cp environments/production.tfvars.example environments/production.tfvars
    ```
 
    Ajuste região, ARN do segredo e tamanhos dos nodes. Os arquivos `.tfvars`
@@ -83,8 +81,8 @@ permite correlacionar uma requisição entre aplicação e observabilidade.
    terraform init \
      -backend-config="bucket=BUCKET_DO_ESTADO" \
      -backend-config="dynamodb_table=siase-terraform-lock"
-   terraform plan -var-file=environments/homolog.tfvars
-   terraform apply -var-file=environments/homolog.tfvars
+   terraform plan -var-file=environments/production.tfvars
+   terraform apply -var-file=environments/production.tfvars
    ```
 
    Em ambiente sem backend, a validação local usa:
@@ -95,7 +93,7 @@ permite correlacionar uma requisição entre aplicação e observabilidade.
    ```
 
 5. O Terraform instala os charts, namespaces, dashboard e publica o parâmetro
-   SSM com o valor inicial `PENDING_ALB_DNS`.
+   SSM `/siase/production/lb-dns` com o valor inicial `PENDING_LB_DNS`.
 6. Aplicar os recursos do Alertmanager e das regras:
 
    ```bash
@@ -104,45 +102,45 @@ permite correlacionar uma requisição entre aplicação e observabilidade.
    kubectl apply -f k8s/prometheus-rule.yaml
    ```
 
-7. Aplicar os manifests da aplicação a partir do repositório `siase-app`.
-   O Ingress `siase-ingress` cria o ALB através do AWS Load Balancer
-   Controller.
-8. Depois que o hostname estiver preenchido no status do Ingress, publicar o
+7. Aplicar os manifestos da aplicação a partir do repositório `15SOAT`.
+   O `app-service` do tipo `LoadBalancer` provisiona o Load Balancer pelo
+   cloud controller do EKS.
+8. Depois que o hostname estiver preenchido no status do Service, publicar o
    DNS no SSM:
 
    ```bash
-   alb_dns="$(kubectl get ingress -n siase siase-ingress \
+   lb_dns="$(kubectl get svc -n siase app-service \
      -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')"
    aws ssm put-parameter \
-     --name "/siase/homolog/alb-dns" \
+     --name "/siase/production/lb-dns" \
      --type String \
-     --value "$alb_dns" \
+     --value "$lb_dns" \
      --overwrite
    ```
 
-   Os workflows automatizam esta espera e publicação. A Lambda de autenticação
-   só deve ser aplicada/atualizada depois dessa etapa, salvo uso de override.
+   O workflow do repositório `15SOAT` automatiza esta espera e publicação.
+   A Lambda de autenticação só deve ser aplicada/atualizada depois dessa etapa,
+   salvo uso de `lb_dns_override`.
 
 ## Terraform
 
 Os módulos oficiais usados são:
 
-- `terraform-aws-modules/vpc/aws` `5.21.1`;
-- `terraform-aws-modules/eks/aws` `20.37.1`.
+- `terraform-aws-modules/vpc/aws` `6.6.1`;
+- EKS provisionado diretamente via `aws_eks_cluster` e `aws_eks_node_group` (sem módulo externo).
 
 Os providers e charts têm versões fixadas nos arquivos Terraform. O node group
 possui `min_size`, `desired_size` e `max_size`, e o `metrics-server` habilita
-autoscaling baseado em métricas de pods. A aplicação pode continuar usando o
-HPA do repositório `siase-app`.
+autoscaling baseado em métricas de pods. A aplicação usa o HPA do repositório `15SOAT`.
 
-O parâmetro SSM é declarado assim conceitualmente:
+O parâmetro SSM é declarado com:
 
-- nome padrão: `/siase/<ambiente>/alb-dns`;
-- valor inicial: `PENDING_ALB_DNS`;
+- nome: `/siase/production/lb-dns`;
+- valor inicial: `PENDING_LB_DNS`;
 - `lifecycle.ignore_changes = [value]`.
 
 Isso evita que um `terraform apply` posterior sobrescreva o hostname real
-publicado pelo workflow.
+publicado pelo workflow do repositório `15SOAT`.
 
 ## Grafana
 
@@ -230,10 +228,20 @@ terraform validate
 ```
 
 `ci.yml` chama esse workflow em pull requests para `main` e `develop`.
-`deploy-homolog.yml` roda em push para `develop`; `deploy-prod.yml` roda em
-push para `main`. Ambos exigem o job `build-test` e usam AWS OIDC.
+`deploy-prod.yml` roda em push para `main`, exige o job `build-test` e usa
+credenciais temporárias do Learner Lab.
 
-Em cada GitHub Environment (`homolog` e `production`), crie:
+**Observação sobre autenticação AWS:** o Learner Lab não suporta OIDC. O workflow
+usa credenciais temporárias (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
+`AWS_SESSION_TOKEN`) que expiram a cada sessão de 4h e precisam ser atualizadas
+manualmente nos secrets do GitHub.
+
+O `deploy-prod.yml` executa dois `terraform apply` em sequência: primeiro aplica
+apenas o cluster EKS e o node group (`-target`), depois aplica o restante
+(Helm charts, namespaces, SSM). Ao final, aplica os manifestos
+`alertmanager-config.yaml` e `prometheus-rule.yaml` via `kubectl`.
+
+No GitHub Environment `production`, crie:
 
 **Variables**
 
@@ -241,20 +249,20 @@ Em cada GitHub Environment (`homolog` e `production`), crie:
 AWS_REGION
 EKS_CLUSTER_NAME
 TF_STATE_BUCKET
-TF_LOCK_TABLE
 GRAFANA_SECRET_ARN
+LAB_ROLE_ARN
+LB_DNS_SSM_PARAMETER
 ```
 
-**Secret**
+**Secrets**
 
 ```text
-AWS_DEPLOY_ROLE_ARN
+AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY
+AWS_SESSION_TOKEN
 ```
 
-A role assumida pelo GitHub deve permitir apenas as operações necessárias ao
-deploy do ambiente, e confiar no provider OIDC do GitHub com restrição ao
-repositório e ao ambiente. Não crie access key estática, PAT ou senha no
-workflow.
+As credenciais do Learner Lab são temporárias e devem ser renovadas a cada sessão.
 
 ## Validação local
 
@@ -277,3 +285,9 @@ extraído para um arquivo de regras Prometheus antes do `promtool check rules`.
 Isso valida a sintaxe que o Prometheus executará, sem fingir que o `promtool`
 valida o envelope Kubernetes.
 
+## Documentacao
+
+- [Diagramas de Sequencia](docs/diagramas-sequencia.md)
+- [ADR-001 — Escolha do EKS como Plataforma de Orquestracao](docs/adr/ADR-001-escolha-eks.md)
+- [ADR-002 — Stack de Observabilidade: Prometheus, Grafana, Loki e Alloy](docs/adr/ADR-002-stack-observabilidade.md)
+- [RFC-001 — Estrategia de Deploy e Escalabilidade no EKS](docs/rfc/RFC-001-estrategia-deploy-escalabilidade.md)

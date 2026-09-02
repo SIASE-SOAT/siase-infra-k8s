@@ -75,6 +75,23 @@ variable "grafana_admin_user" {
   default = "admin"
 }
 
+variable "grafana_service_type" {
+  type        = string
+  default     = "ClusterIP"
+  description = "Tipo do Service do Grafana. Use LoadBalancer somente durante a gravação, com CIDRs permitidos configurados."
+
+  validation {
+    condition     = contains(["ClusterIP", "LoadBalancer"], var.grafana_service_type)
+    error_message = "grafana_service_type deve ser ClusterIP ou LoadBalancer."
+  }
+}
+
+variable "grafana_allowed_cidrs" {
+  type        = list(string)
+  default     = []
+  description = "Lista de CIDRs autorizados a alcançar o Load Balancer do Grafana, por exemplo o IP público do usuário com máscara /32."
+}
+
 variable "lb_dns_ssm_parameter" {
   type        = string
   default     = ""

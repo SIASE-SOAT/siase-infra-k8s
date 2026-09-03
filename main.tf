@@ -14,6 +14,17 @@ locals {
     Environment = var.environment
     ManagedBy   = "terraform"
   })
+
+  grafana_service_values = yamlencode({
+    grafana = {
+      service = merge(
+        { type = var.grafana_service_type },
+        var.grafana_service_type == "LoadBalancer" ? {
+          loadBalancerSourceRanges = var.grafana_allowed_cidrs
+        } : {}
+      )
+    }
+  })
 }
 
 data "aws_availability_zones" "available" {
@@ -226,10 +237,20 @@ resource "helm_release" "kube_prometheus_stack" {
   version          = "61.7.2"
   wait             = true
 
-  values = [templatefile("${path.module}/helm/kube-prometheus-stack-values.yaml", {
-    grafana_admin_user     = var.grafana_admin_user
-    grafana_admin_password = jsondecode(data.aws_secretsmanager_secret_version.grafana.secret_string)["password"]
-  })]
+  values = [
+    templatefile("${path.module}/helm/kube-prometheus-stack-values.yaml", {
+      grafana_admin_user     = var.grafana_admin_user
+      grafana_admin_password = jsondecode(data.aws_secretsmanager_secret_version.grafana.secret_string)["password"]
+    }),
+    local.grafana_service_values
+  ]
+
+  lifecycle {
+    precondition {
+      condition     = var.grafana_service_type != "LoadBalancer" || length(var.grafana_allowed_cidrs) > 0
+      error_message = "grafana_allowed_cidrs deve conter ao menos um CIDR ao usar LoadBalancer."
+    }
+  }
 
   depends_on = [kubernetes_namespace_v1.monitoring, aws_eks_node_group.default]
 }

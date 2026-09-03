@@ -6,3 +6,10 @@ node_instance_types = ["t3.medium"]
 node_min_size       = 2
 node_desired_size   = 2
 node_max_size       = 4
+
+# Para manter o Grafana interno:
+# grafana_service_type  = "ClusterIP"
+# grafana_allowed_cidrs = []
+
+# grafana_service_type  = "LoadBalancer"
+# grafana_allowed_cidrs = ["203.0.113.10/32"]

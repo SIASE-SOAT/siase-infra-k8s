@@ -1,0 +1,130 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: siase-fase4-saga-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  siase-fase4-saga-dashboard.json: |
+    {
+      "title": "SIASE Fase 4 — Saga & Microsserviços",
+      "uid": "siase-fase4-saga",
+      "schemaVersion": 39,
+      "version": 1,
+      "editable": true,
+      "timezone": "browser",
+      "refresh": "10s",
+      "time": { "from": "now-1h", "to": "now" },
+      "templating": {
+        "list": [
+          {
+            "name": "correlationId",
+            "label": "Correlation ID",
+            "type": "textbox",
+            "query": "",
+            "current": { "text": "", "value": "" }
+          }
+        ]
+      },
+      "panels": [
+        {
+          "id": 1,
+          "type": "timeseries",
+          "title": "Eventos do Saga por serviço (msg/s)",
+          "description": "siase_saga_eventos_total — publicados e consumidos por serviço/evento",
+          "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+          "targets": [
+            {
+              "expr": "sum by (servico, evento, direcao) (rate(siase_saga_eventos_total[1m]))",
+              "legendFormat": "{{servico}} / {{evento}} / {{direcao}}",
+              "refId": "A",
+              "datasource": { "type": "prometheus" }
+            }
+          ],
+          "datasource": { "type": "prometheus" },
+          "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
+        },
+        {
+          "id": 2,
+          "type": "timeseries",
+          "title": "Latência HTTP p95 por serviço",
+          "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le, application) (rate(http_server_requests_seconds_bucket[5m])))",
+              "legendFormat": "{{application}}",
+              "refId": "A",
+              "datasource": { "type": "prometheus" }
+            }
+          ],
+          "datasource": { "type": "prometheus" },
+          "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] }
+        },
+        {
+          "id": 3,
+          "type": "timeseries",
+          "title": "Erros HTTP 5xx (req/s)",
+          "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+          "targets": [
+            {
+              "expr": "sum by (application) (rate(http_server_requests_seconds_count{status=~\"5..\"}[1m]))",
+              "legendFormat": "{{application}}",
+              "refId": "A",
+              "datasource": { "type": "prometheus" }
+            }
+          ],
+          "datasource": { "type": "prometheus" },
+          "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] }
+        },
+        {
+          "id": 4,
+          "type": "stat",
+          "title": "Mensagens em DLQ (todas as filas)",
+          "description": "Requer CloudWatch exporter ou metrics via YACE. Ajuste o nome das filas.",
+          "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+          "targets": [
+            {
+              "expr": "sum(aws_sqs_approximate_number_of_messages_visible{queue_name=~\"siase-.*-dlq\"})",
+              "legendFormat": "DLQ",
+              "refId": "A",
+              "datasource": { "type": "prometheus" }
+            }
+          ],
+          "datasource": { "type": "prometheus" },
+          "fieldConfig": {
+            "defaults": {
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 1 }
+                ]
+              }
+            },
+            "overrides": []
+          }
+        },
+        {
+          "id": 5,
+          "type": "logs",
+          "title": "Logs por correlationId (Loki)",
+          "description": "Filtrar pelo correlationId do fluxo da OS (variável no topo)",
+          "gridPos": { "x": 0, "y": 16, "w": 24, "h": 10 },
+          "targets": [
+            {
+              "expr": "{namespace=~\"siase.*\"} | json | correlationId=\"${correlationId}\"",
+              "refId": "A",
+              "datasource": { "type": "loki" }
+            }
+          ],
+          "datasource": { "type": "loki" },
+          "options": {
+            "showTime": true,
+            "showLabels": false,
+            "wrapLogMessage": true,
+            "sortOrder": "Ascending"
+          }
+        }
+      ]
+    }

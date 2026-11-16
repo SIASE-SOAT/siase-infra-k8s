@@ -34,4 +34,4 @@ jobs:
         with:
           version: latest
       - run: aws eks update-kubeconfig --region "${{ vars.AWS_REGION }}" --name "${{ vars.EKS_CLUSTER_NAME }}"
-      - run: kubectl apply -f k8s/alertmanager-config.yaml -f k8s/prometheus-rule.yaml
+      - run: kubectl apply -f k8s/alertmanager-config.yaml -f k8s/prometheus-rule.yaml -f k8s/monitoring-siase-servicemonitors.yaml -f k8s/monitoring-siase-dashboard-configmap.yaml

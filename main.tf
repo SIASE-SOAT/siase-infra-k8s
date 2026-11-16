@@ -63,6 +63,7 @@ module "eks" {
   create_iam_role                          = false
   iam_role_arn                             = var.lab_role_arn
   enable_irsa                              = false
+  enable_aws_iam_session_context           = false
   enable_cluster_creator_admin_permissions = true
 
   addons = {

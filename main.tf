@@ -48,55 +48,50 @@ module "vpc" {
   tags = local.common_tags
 }
 
-module "eks" {
-  source  = "terraform-aws-modules/eks/aws"
-  version = "21.24.2"
+resource "aws_eks_cluster" "this" {
+  name     = local.name
+  version  = var.cluster_version
+  role_arn = var.lab_role_arn
 
-  name               = local.name
-  kubernetes_version = var.cluster_version
-
-  vpc_id     = module.vpc.vpc_id
-  subnet_ids = module.vpc.public_subnets
-
-  endpoint_public_access = true
-
-  create_iam_role                          = false
-  iam_role_arn                             = var.lab_role_arn
-  enable_irsa                              = false
-  enable_aws_iam_session_context           = false
-  enable_cluster_creator_admin_permissions = true
-
-  addons = {
-    coredns = {
-      most_recent = true
-    }
-    kube-proxy = {
-      most_recent = true
-    }
-    vpc-cni = {
-      most_recent    = true
-      before_compute = true
-    }
+  vpc_config {
+    subnet_ids              = module.vpc.public_subnets
+    endpoint_public_access  = true
+    endpoint_private_access = false
   }
 
-  eks_managed_node_groups = {
-    default = {
-      # No Learner Lab, a SCP nega ec2:DescribeInstances exigida pelo nodeadm do AL2023.
-      ami_type        = "AL2_x86_64"
-      instance_types  = var.node_instance_types
-      create_iam_role = false
-      iam_role_arn    = var.lab_role_arn
-
-      min_size     = var.node_min_size
-      desired_size = var.node_desired_size
-      max_size     = var.node_max_size
-
-      subnet_ids = module.vpc.public_subnets
-    }
+  access_config {
+    authentication_mode                         = "API_AND_CONFIG_MAP"
+    bootstrap_cluster_creator_admin_permissions = true
   }
 
-  access_entries = {}
-  tags           = local.common_tags
+  tags = local.common_tags
+}
+
+resource "aws_eks_node_group" "default" {
+  cluster_name    = aws_eks_cluster.this.name
+  node_group_name = "default"
+  node_role_arn   = var.lab_role_arn
+  subnet_ids      = module.vpc.public_subnets
+
+  # No Learner Lab, a SCP nega ec2:DescribeInstances exigida pelo nodeadm do AL2023.
+  ami_type       = "AL2_x86_64"
+  capacity_type  = "ON_DEMAND"
+  instance_types = var.node_instance_types
+  version        = var.cluster_version
+
+  scaling_config {
+    min_size     = var.node_min_size
+    desired_size = var.node_desired_size
+    max_size     = var.node_max_size
+  }
+
+  update_config {
+    max_unavailable = 1
+  }
+
+  tags = local.common_tags
+
+  depends_on = [aws_eks_cluster.this]
 }
 
 data "aws_secretsmanager_secret_version" "grafana" {
@@ -178,7 +173,7 @@ resource "aws_ssm_parameter" "private_subnet_ids" {
 resource "aws_ssm_parameter" "eks_node_sg_id" {
   name  = "/siase/production/eks-node-sg-id"
   type  = "String"
-  value = module.eks.node_security_group_id
+  value = aws_eks_cluster.this.vpc_config[0].cluster_security_group_id
   tags  = local.common_tags
 }
 

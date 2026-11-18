@@ -1,9 +1,11 @@
 # SIASE - infraestrutura Kubernetes e observabilidade
 
-Repositório da infraestrutura da Fase 3 para o cluster Kubernetes gerenciado da
+Repositório da infraestrutura Kubernetes (Fase 3 e Fase 4) para o cluster gerenciado da
 aplicação SIASE. O código cria a rede AWS, o EKS, o VPC Endpoint para o
 Secrets Manager, o stack de observabilidade e os parâmetros SSM consumidos
-pelos repositórios `siase-infra-database` e `siase-auth-lambda`.
+pelos repositórios `siase-infra-database`, `siase-auth-lambda` e pelos
+microsserviços da Fase 4 (`siase-os-service`, `siase-billing-service`,
+`siase-execution-service`).
 
 O apply deve ser realizado somente em uma conta AWS Student, usando credenciais
 temporarias do Learner Lab atualizadas a cada sessão.
@@ -290,4 +292,5 @@ valida o envelope Kubernetes.
 - [Diagramas de Sequencia](docs/diagramas-sequencia.md)
 - [ADR-001 — Escolha do EKS como Plataforma de Orquestracao](docs/adr/ADR-001-escolha-eks.md)
 - [ADR-002 — Stack de Observabilidade: Prometheus, Grafana, Loki e Alloy](docs/adr/ADR-002-stack-observabilidade.md)
+- [ADR-003 — Suporte aos Microsservicos da Fase 4 no Cluster EKS](docs/adr/ADR-003-suporte-microsservicos.md)
 - [RFC-001 — Estrategia de Deploy e Escalabilidade no EKS](docs/rfc/RFC-001-estrategia-deploy-escalabilidade.md)

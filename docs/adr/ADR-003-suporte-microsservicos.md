@@ -1,7 +1,7 @@
 # ADR-003 — Suporte aos Microsserviços da Fase 4 no Cluster EKS
 
 **Status:** Aceito
-**Data:** 2025-01
+**Data:** 2026-11
 **Repositório:** siase-infra-k8s
 
 ## Contexto

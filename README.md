@@ -292,5 +292,5 @@ valida o envelope Kubernetes.
 - [Diagramas de Sequencia](docs/diagramas-sequencia.md)
 - [ADR-001 — Escolha do EKS como Plataforma de Orquestracao](docs/adr/ADR-001-escolha-eks.md)
 - [ADR-002 — Stack de Observabilidade: Prometheus, Grafana, Loki e Alloy](docs/adr/ADR-002-stack-observabilidade.md)
-- [ADR-003 — Suporte aos Microsservicos da Fase 4 no Cluster EKS](docs/adr/ADR-003-suporte-microsservicos-fase4.md)
+- [ADR-003 — Suporte aos Microsservicos da Fase 4 no Cluster EKS](docs/adr/ADR-003-suporte-microsservicos.md)
 - [RFC-001 — Estrategia de Deploy e Escalabilidade no EKS](docs/rfc/RFC-001-estrategia-deploy-escalabilidade.md)
